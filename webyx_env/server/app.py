@@ -16,7 +16,7 @@ except Exception as e:  # pragma: no cover
 try:
     from ..models import WebyxAction, WebyxObservation
     from .webyx_env_environment import WebyxEnvironment
-except ModuleNotFoundError:
+except (ImportError, ModuleNotFoundError):
     from models import WebyxAction, WebyxObservation
     from server.webyx_env_environment import WebyxEnvironment
 

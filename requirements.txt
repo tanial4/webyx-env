@@ -61,7 +61,7 @@ openai==2.30.0
 openapi-pydantic==0.5.1
 openenv==0.1.13
 openenv-core==0.2.3
--e git+https://github.com/tanial4/webyx-env.git@12e994236b8a078a711ab92d4d89d7de0e170096#egg=openenv_webyx_env&subdirectory=webyx_env
+-e ./webyx_env
 opentelemetry-api==1.40.0
 orjson==3.11.8
 packaging==26.0

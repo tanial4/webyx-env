@@ -25,7 +25,7 @@ ARG BUILD_MODE=in-repo
 ARG ENV_NAME=webyx_env
 
 # Copy environment code (always at root of build context)
-COPY . /app/env
+COPY webyx_env/ /app/env
 
 # For in-repo builds, openenv is already vendored in the build context
 # For standalone builds, openenv will be installed via pyproject.toml
