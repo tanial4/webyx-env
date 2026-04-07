@@ -1,4 +1,4 @@
-from typing import Dict
+from typing import Dict, Optional
 
 from openenv.core import EnvClient
 from openenv.core.client_types import StepResult
@@ -8,6 +8,12 @@ from .models import ViolationView, WebyxAction, WebyxObservation
 
 
 class WebyxEnv(EnvClient[WebyxAction, WebyxObservation, State]):
+
+    def _reset_payload(self, task_id: Optional[str] = None) -> Dict:
+        if task_id is not None:
+            return {"task_id": task_id}
+        return {}
+
     def _step_payload(self, action: WebyxAction) -> Dict:
         return {
             "action_type": action.action_type,
