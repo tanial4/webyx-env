@@ -64,5 +64,10 @@ def main():
     uvicorn.run(app, host=args.host, port=args.port)
 
 
+@app.get("/health")
+async def health():
+    return {"status": "ok"}
+
+
 if __name__ == "__main__":
     main()
