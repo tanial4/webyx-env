@@ -41,3 +41,6 @@ htmlcov/
 
 # Hugging Face
 hf_cache/
+
+prompt.txt
+tests/

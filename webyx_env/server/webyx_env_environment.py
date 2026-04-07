@@ -232,49 +232,88 @@ class WebyxEnvironment(Environment):
             return self.reset()
 
         self._state.step_count += 1
+
         reward = 0.0
         event = "noop"
 
-        active = self._active_violations()
-        violation = next((item for item in active if item.selector == action.target), None)
+        # Normalizar inputs para evitar problemas de serialización / espacios / enums
+        raw_action_type = getattr(action, "action_type", "")
+        action_type = str(raw_action_type).split(".")[-1].strip().lower()
 
-        if action.action_type == "detect":
+        raw_target = getattr(action, "target", "")
+        target = str(raw_target).strip()
+
+        raw_proposed_fix = getattr(action, "proposed_fix", "")
+        proposed_fix = "" if raw_proposed_fix is None else str(raw_proposed_fix).strip()
+
+        active = self._active_violations()
+        violation = next((item for item in active if item.selector.strip() == target), None)
+
+        if action_type == "detect":
             event = "detect"
             if violation is not None and violation.violation_id not in self._detected:
                 self._detected.add(violation.violation_id)
-                reward = 0.15 if violation.level == "A" else 0.1
+                reward = 0.15 if violation.level == "A" else 0.10
             else:
                 reward = -0.05
-        elif action.action_type == "fix":
+
+        elif action_type == "fix":
             event = "fix"
+
             if violation is None:
-                reward = -0.2
+                reward = -0.20
             else:
-                before_count = len(self._active_violations())
-                if violation.apply_fix(self._soup, action.proposed_fix):
-                    after_count = len(self._active_violations())
-                    if after_count < before_count and violation.fix_checker(self._soup):
+                before_count = len(active)
+                applied = violation.apply_fix(self._soup, proposed_fix)
+
+                if applied:
+                    active_after_apply = self._active_violations()
+                    after_count = len(active_after_apply)
+                    resolved = after_count < before_count and violation.fix_checker(self._soup)
+
+                    if resolved:
                         self._resolved.add(violation.violation_id)
-                        reward = 0.4 if violation.level == "A" else 0.3 if violation.level == "AA" else 0.2
+
+                        if violation.level == "A":
+                            reward = 0.40
+                        elif violation.level == "AA":
+                            reward = 0.30
+                        else:
+                            reward = 0.20
                     else:
-                        reward = -0.2
+                        reward = -0.20
                 else:
-                    reward = -0.2
-        elif action.action_type == "skip":
+                    reward = -0.20
+
+        elif action_type == "skip":
             event = "skip"
             if violation is None:
                 reward = -0.05
             else:
                 reward = _skip_reward(violation.level)
 
-        # Penalize remaining invalid structure if the action introduced duplicate issues.
+        else:
+            event = "invalid_action"
+            reward = -0.10
+
+        # Recalcular después de la acción
         active_after = self._active_violations()
+
+        # Penalización si la acción empeoró la estructura
         if len(active_after) > len(active):
-            reward -= 0.2
+            reward -= 0.20
+
+        # Clamp de reward individual
+        reward = max(-1.0, min(1.0, reward))
 
         self._cumulative_reward += reward
         done = not active_after or self._state.step_count >= self._task.max_steps
-        return self._build_observation(reward=reward, done=done, event=event)
+
+        return self._build_observation(
+            reward=reward,
+            done=done,
+            event=event,
+        )
 
     @property
     def state(self) -> State:
