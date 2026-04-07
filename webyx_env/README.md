@@ -1,6 +1,6 @@
 ---
 title: Webyx Accessibility Benchmark
-emoji: ♿
+emoji: 👁️
 colorFrom: green
 colorTo: blue
 sdk: docker
