@@ -4,4 +4,40 @@ type: space
 runtime: fastapi
 app: server.app:app
 port: 8000
-
+description: "RL environment for benchmarking AI agents on WCAG web accessibility auditing"
+author: "webyx-team"
+reward_range: [-0.2, 0.4]
+tasks:
+  - id: easy
+    description: "Fix missing alt attributes on 4 images (WCAG level A)"
+    difficulty: easy
+    max_steps: 8
+  - id: medium
+    description: "Fix AA form violations: labels, contrast, ARIA"
+    difficulty: medium
+    max_steps: 10
+  - id: hard
+    description: "Full audit of mixed A, AA and AAA violations"
+    difficulty: hard
+    max_steps: 12
+action_space:
+  type: structured
+  fields:
+    - name: action_type
+      type: enum
+      values: [detect, fix, skip]
+    - name: target
+      type: string
+    - name: proposed_fix
+      type: string
+observation_space:
+  type: structured
+  fields:
+    - name: html_snippet
+      type: string
+    - name: violations
+      type: list
+    - name: remaining_violations
+      type: dict
+    - name: step_number
+      type: integer
