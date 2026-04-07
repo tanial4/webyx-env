@@ -45,7 +45,6 @@ def _has_non_empty_alt(selector: str) -> Callable[[BeautifulSoup], bool]:
     def _check(soup: BeautifulSoup) -> bool:
         element = soup.select_one(selector)
         return bool(element and element.has_attr("alt") and str(element["alt"]).strip())
-
     return _check
 
 
@@ -64,7 +63,6 @@ def _apply_alt(selector: str) -> Callable[[BeautifulSoup, str], bool]:
             return False
         element["alt"] = value
         return True
-
     return _apply
 
 
@@ -72,7 +70,6 @@ def _label_exists(for_id: str) -> Callable[[BeautifulSoup], bool]:
     def _check(soup: BeautifulSoup) -> bool:
         label = soup.select_one(f'label[for="{for_id}"]')
         return bool(label and label.get_text(strip=True))
-
     return _check
 
 
@@ -93,7 +90,6 @@ def _apply_label(before_selector: str, required_for: str) -> Callable[[Beautiful
             return False
         target.insert_before(label)
         return True
-
     return _apply
 
 
@@ -103,7 +99,6 @@ def _button_has_accessible_name(selector: str) -> Callable[[BeautifulSoup], bool
         if button is None:
             return False
         return bool(button.get("aria-label") or button.get_text(strip=True))
-
     return _check
 
 
@@ -121,7 +116,6 @@ def _apply_aria_label(selector: str) -> Callable[[BeautifulSoup, str], bool]:
             return False
         button["aria-label"] = value
         return True
-
     return _apply
 
 
@@ -132,7 +126,6 @@ def _has_high_contrast_class(selector: str) -> Callable[[BeautifulSoup], bool]:
             return False
         classes = element.get("class", [])
         return "high-contrast" in classes
-
     return _check
 
 
@@ -144,12 +137,11 @@ def _apply_class(selector: str, required_class: str) -> Callable[[BeautifulSoup,
         fix = proposed_fix.strip()
         if not fix.startswith('class="') or not fix.endswith('"'):
             return False
-        classes = fix[len('class="') : -1].split()
+        classes = fix[len('class="'):-1].split()
         if required_class not in classes:
             return False
         element["class"] = classes
         return True
-
     return _apply
 
 
@@ -157,7 +149,6 @@ def _field_has_autocomplete(selector: str, expected_value: str) -> Callable[[Bea
     def _check(soup: BeautifulSoup) -> bool:
         element = soup.select_one(selector)
         return bool(element and element.get("autocomplete") == expected_value)
-
     return _check
 
 
@@ -171,14 +162,12 @@ def _apply_autocomplete(selector: str, expected_value: str) -> Callable[[Beautif
             return False
         element["autocomplete"] = expected_value
         return True
-
     return _apply
 
 
 def _landmark_present(selector: str) -> Callable[[BeautifulSoup], bool]:
     def _check(soup: BeautifulSoup) -> bool:
         return soup.select_one(selector) is not None
-
     return _check
 
 
@@ -194,7 +183,6 @@ def _apply_replace_tag(selector: str, expected_tag: str) -> Callable[[BeautifulS
             return False
         element.replace_with(new_tag)
         return True
-
     return _apply
 
 
@@ -269,12 +257,10 @@ class WebyxEnvironment(Environment):
             else:
                 before_count = len(active)
                 applied = violation.apply_fix(self._soup, proposed_fix)
-
                 if applied:
                     active_after_apply = self._active_violations()
                     after_count = len(active_after_apply)
                     resolved = after_count < before_count and violation.fix_checker(self._soup)
-
                     if resolved:
                         self._resolved.add(violation.violation_id)
                         if violation.level == "A":
@@ -305,7 +291,6 @@ class WebyxEnvironment(Environment):
             reward -= 0.20
 
         reward = max(-1.0, min(1.0, reward))
-
         self._cumulative_reward += reward
         done = not active_after or self._state.step_count >= self._task.max_steps
 
@@ -344,9 +329,9 @@ class WebyxEnvironment(Environment):
             max_steps=self._task.max_steps,
             done=done,
             reward=reward,
+            episode_score=round(score, 4),
             metadata={
                 "event": event,
-                "episode_score": round(score, 4),
                 "cumulative_reward": round(self._cumulative_reward, 4),
                 "reset_count": self._reset_count,
             },
@@ -403,7 +388,7 @@ class WebyxEnvironment(Environment):
             TaskSpec(
                 task_id="hard",
                 title="Full page audit with mixed A, AA and AAA issues",
-                max_steps=12,
+                max_steps=14,
                 initial_html="""
 <div class="page-shell">
   <div id="nav-links">
@@ -438,10 +423,9 @@ class WebyxEnvironment(Environment):
             fix = proposed_fix.strip()
             if not fix.startswith('class="') or not fix.endswith('"'):
                 return False
-            classes = [item for item in fix[len('class="') : -1].split() if item]
+            classes = [item for item in fix[len('class="'):-1].split() if item]
             if removable in classes:
                 return False
             element["class"] = classes
             return True
-
         return _apply

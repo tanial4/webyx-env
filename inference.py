@@ -12,8 +12,16 @@ from webyx_env.models import WebyxAction, WebyxObservation
 IMAGE_NAME = os.getenv("LOCAL_IMAGE_NAME", "webyx-env")
 HF_SPACE_URL = os.getenv("HF_SPACE_URL")
 API_KEY = os.getenv("HF_TOKEN") or os.getenv("API_KEY")
-API_BASE_URL = os.getenv("API_BASE_URL", "https://router.huggingface.co/v1")
-MODEL_NAME = os.getenv("MODEL_NAME", "Qwen/Qwen2.5-72B-Instruct")
+API_BASE_URL = os.getenv("API_BASE_URL")
+MODEL_NAME = os.getenv("MODEL_NAME")
+
+if not API_KEY:
+    raise ValueError("HF_TOKEN o API_KEY no definido en .env")
+if not API_BASE_URL:
+    raise ValueError("API_BASE_URL no definido en .env")
+if not MODEL_NAME:
+    raise ValueError("MODEL_NAME no definido en .env")
+
 BENCHMARK = "webyx_env"
 TASKS = ["easy", "medium", "hard"]
 MAX_STEPS = 12
@@ -127,6 +135,10 @@ def get_action(client: OpenAI, obs: WebyxObservation, history: List[str]) -> Web
         return WebyxAction(action_type="skip", target="", proposed_fix="")
 
 
+def calculate_score(obs: WebyxObservation, rewards: List[float]) -> float:
+    return round(min(max(obs.episode_score, 0.0), 1.0), 2)
+
+
 async def run_episode(env: WebyxEnv, client: OpenAI, task_id: str) -> None:
     history: List[str] = []
     rewards: List[float] = []
@@ -165,8 +177,7 @@ async def run_episode(env: WebyxEnv, client: OpenAI, task_id: str) -> None:
             if done:
                 break
 
-        score = sum(rewards) / (len(rewards) * 0.4) if rewards else 0.0
-        score = min(max(score, 0.0), 1.0)
+        score = calculate_score(obs, rewards)
         success = score >= SUCCESS_SCORE_THRESHOLD
 
     except Exception as e:

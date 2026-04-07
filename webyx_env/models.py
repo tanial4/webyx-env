@@ -1,8 +1,7 @@
-from typing import Dict, List, Literal
+from typing import Any, Dict, List, Literal
 
 from openenv.core.env_server.types import Action, Observation
-from pydantic import BaseModel
-from pydantic import Field
+from pydantic import BaseModel, Field
 
 
 class ViolationView(BaseModel):
@@ -36,3 +35,11 @@ class WebyxObservation(Observation):
     )
     step_number: int = Field(default=0, description="Current step number")
     max_steps: int = Field(default=0, description="Maximum steps allowed for the task")
+    episode_score: float = Field(
+        default=0.0,
+        description="Current episode score in [0.0, 1.0]",
+    )
+    metadata: Dict[str, Any] = Field(
+        default_factory=dict,
+        description="Episode metadata including event and cumulative reward",
+    )
