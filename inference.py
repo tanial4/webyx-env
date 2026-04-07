@@ -6,8 +6,8 @@ from typing import List, Optional
 
 from openai import OpenAI
 
-from webyx_env.client import WebyxEnv
-from webyx_env.models import WebyxAction, WebyxObservation
+from client import WebyxEnv
+from models import WebyxAction, WebyxObservation
 
 IMAGE_NAME = os.getenv("LOCAL_IMAGE_NAME", "webyx-env")
 HF_SPACE_URL = os.getenv("HF_SPACE_URL")
