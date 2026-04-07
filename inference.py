@@ -1,13 +1,18 @@
 import asyncio
 import json
 import os
+import re
 import textwrap
 from typing import List, Optional
 
 from openai import OpenAI
 
-from client import WebyxEnv
-from models import WebyxAction, WebyxObservation
+try:
+    from webyx_env.client import WebyxEnv
+    from webyx_env.models import WebyxAction, WebyxObservation
+except ImportError:
+    from client import WebyxEnv
+    from models import WebyxAction, WebyxObservation
 
 IMAGE_NAME = os.getenv("LOCAL_IMAGE_NAME", "webyx-env")
 HF_SPACE_URL = os.getenv("HF_SPACE_URL")
@@ -67,7 +72,7 @@ def build_user_prompt(obs: WebyxObservation, history: List[str]) -> str:
         for v in obs.violations
     ) or "  None remaining"
 
-    history_block = "\n".join(history[-4:]) if history else "None"
+    history_block = "\n".join(history[-2:]) if history else "None"
 
     return textwrap.dedent(f"""
         Task: {obs.task_title}
@@ -97,13 +102,17 @@ def get_action(client: OpenAI, obs: WebyxObservation, history: List[str]) -> Web
                 {"role": "system", "content": SYSTEM_PROMPT},
                 {"role": "user", "content": user_prompt},
             ],
-            temperature=0.2,
+            temperature=0.0,
             max_tokens=200,
             stream=False,
         )
         text = (completion.choices[0].message.content or "").strip()
         text = text.strip("```json").strip("```").strip()
-        data = json.loads(text)
+        match = re.search(r'\{.*?\}', text, re.DOTALL)
+        if match:
+            data = json.loads(match.group())
+        else:
+            raise ValueError("No JSON found in response")
         return WebyxAction(
             action_type=data.get("action_type", "skip"),
             target=data.get("target", ""),
