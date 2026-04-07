@@ -1,5 +1,5 @@
 ---
-title: Webyx Accessibility Benchmark
+title: OpenEnv Webyx Accessibility Benchmark
 emoji: 👁️
 colorFrom: green
 colorTo: blue
@@ -8,9 +8,9 @@ pinned: false
 app_port: 8000
 base_path: /web
 tags:
+  - reinforcement-learning
   - openenv
   - accessibility
-  - reinforcement-learning
 ---
 
 # Webyx Accessibility Benchmark
