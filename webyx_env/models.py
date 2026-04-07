@@ -12,7 +12,7 @@ class ViolationView(BaseModel):
 
 
 class WebyxAction(Action):
-    action_type: Literal["detect", "fix", "skip"] = Field(
+    action_type: str = Field(
         ..., description="Type of action to perform for accessibility auditing"
     )
     target: str = Field(..., description="CSS selector of the element being acted on")

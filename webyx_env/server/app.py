@@ -20,14 +20,18 @@ except (ImportError, ModuleNotFoundError):
     from models import WebyxAction, WebyxObservation
     from server.webyx_env_environment import WebyxEnvironment
 
+def make_env():
+    env = WebyxEnvironment()
+    env.reset()
+    return env
 
-# Create the app with web interface and README integration
+
 app = create_app(
-    WebyxEnvironment,
+    make_env,          # ← único cambio
     WebyxAction,
     WebyxObservation,
     env_name="webyx_env",
-    max_concurrent_envs=1,  # increase this number to allow more concurrent WebSocket sessions
+    max_concurrent_envs=1,
 )
 
 
