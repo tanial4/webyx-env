@@ -1,7 +1,7 @@
 ---
 title: Webyx Accessibility Benchmark
 emoji: ♿
-colorFrom: slate
+colorFrom: green
 colorTo: blue
 sdk: docker
 pinned: false
