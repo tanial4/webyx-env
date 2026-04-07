@@ -323,6 +323,17 @@ HTML = """<!DOCTYPE html>
   <div class="panel">
     <div class="panel-header">Actions</div>
     <div class="panel-body">
+
+      <div class="ctrl-group">
+        <label class="ctrl-label">Task</label>
+        <select id="task-select">
+          <option value="">— cycle (default) —</option>
+          <option value="easy">easy</option>
+          <option value="medium">medium</option>
+          <option value="hard">hard</option>
+        </select>
+      </div>
+
       <div class="ctrl-group">
         <label class="ctrl-label">Action type</label>
         <select id="action-type">
@@ -331,19 +342,24 @@ HTML = """<!DOCTYPE html>
           <option value="skip">skip</option>
         </select>
       </div>
+
       <div class="ctrl-group">
         <label class="ctrl-label">Target (CSS selector) <span style="color:var(--accent);font-size:9px;">— click a violation to fill</span></label>
         <input id="target" type="text" placeholder=".btn, #hero img, …"/>
       </div>
+
       <div class="ctrl-group">
         <label class="ctrl-label">Proposed fix</label>
         <textarea id="proposed-fix" rows="3" placeholder='alt="descriptive text", aria-label="Submit", …'></textarea>
       </div>
+
       <div id="error-msg"></div>
+
       <div class="btn-row">
         <button class="btn btn-exec" id="exec-btn" onclick="executeStep()" disabled>Execute</button>
         <button class="btn btn-reset" onclick="resetEnv()">Reset</button>
       </div>
+
       <div class="rem-counts">
         <div class="rem-pill rem-A">
           <div style="font-size:9px;margin-bottom:2px;">A</div>
@@ -383,7 +399,7 @@ HTML = """<!DOCTYPE html>
 </div>
 
 <script>
-const BACKEND = "http://localhost:8000";
+const BACKEND = "https://mykrex-webyx-env.hf.space";
 
 let rewardChart = null;
 let chartLabels = [];
@@ -517,8 +533,15 @@ async function resetEnv() {
   document.getElementById("violations-body").innerHTML = "";
   initChart();
 
+  const taskId = document.getElementById("task-select").value;
+  const body = taskId ? JSON.stringify({ task_id: taskId }) : "{}";
+
   try {
-    const res = await fetch(BACKEND + "/reset", { method: "POST" });
+    const res = await fetch(BACKEND + "/reset", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: body
+    });
     if (!res.ok) throw new Error("HTTP " + res.status);
     const data = await res.json();
     const obs = data.observation ?? data;

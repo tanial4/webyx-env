@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 from copy import deepcopy
-from dataclasses import dataclass
-from typing import Callable, List, Literal, Optional
+from dataclasses import dataclass, field
+from typing import Callable, List, Literal, Optional, Tuple
 from uuid import uuid4
 
 from bs4 import BeautifulSoup
@@ -26,6 +26,7 @@ class ViolationSpec:
     description: str
     fix_checker: Callable[[BeautifulSoup], bool]
     apply_fix: Callable[[BeautifulSoup, str], bool]
+    dependencies: Tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -186,6 +187,50 @@ def _apply_replace_tag(selector: str, expected_tag: str) -> Callable[[BeautifulS
     return _apply
 
 
+def _has_role(selector: str, expected_role: str) -> Callable[[BeautifulSoup], bool]:
+    def _check(soup: BeautifulSoup) -> bool:
+        element = soup.select_one(selector)
+        return bool(element and element.get("role") == expected_role)
+    return _check
+
+
+def _apply_role(selector: str, expected_role: str) -> Callable[[BeautifulSoup, str], bool]:
+    def _apply(soup: BeautifulSoup, proposed_fix: str) -> bool:
+        element = soup.select_one(selector)
+        if element is None:
+            return False
+        fix = proposed_fix.strip()
+        if "=" not in fix:
+            return False
+        attr_name, raw_value = fix.split("=", 1)
+        value = raw_value.strip().strip('"').strip("'")
+        if attr_name.strip() != "role" or value != expected_role:
+            return False
+        element["role"] = expected_role
+        return True
+    return _apply
+
+
+def _has_lang(selector: str) -> Callable[[BeautifulSoup], bool]:
+    def _check(soup: BeautifulSoup) -> bool:
+        element = soup.select_one(selector)
+        return bool(element and element.get("lang", "").strip())
+    return _check
+
+
+def _apply_lang(selector: str, expected_lang: str) -> Callable[[BeautifulSoup, str], bool]:
+    def _apply(soup: BeautifulSoup, proposed_fix: str) -> bool:
+        element = soup.select_one(selector)
+        if element is None:
+            return False
+        fix = proposed_fix.strip()
+        if fix != f'lang="{expected_lang}"':
+            return False
+        element["lang"] = expected_lang
+        return True
+    return _apply
+
+
 def _skip_reward(level: Level) -> float:
     return -0.20 if level == "A" else -0.10
 
@@ -292,7 +337,8 @@ class WebyxEnvironment(Environment):
 
         reward = max(-1.0, min(1.0, reward))
         self._cumulative_reward += reward
-        done = not active_after or self._state.step_count >= self._task.max_steps
+        all_resolved = len(self._resolved) == len(self._task.violations)
+        done = all_resolved or self._state.step_count >= self._task.max_steps
 
         return self._build_observation(reward=reward, done=done, event=event)
 
@@ -339,7 +385,11 @@ class WebyxEnvironment(Environment):
 
     def _active_violations(self) -> List[ViolationSpec]:
         assert self._task is not None and self._soup is not None
-        return [violation for violation in self._task.violations if not violation.fix_checker(self._soup)]
+        return [
+            v for v in self._task.violations
+            if not v.fix_checker(self._soup)
+            and all(dep in self._resolved for dep in v.dependencies)
+        ]
 
     def _format_html(self) -> str:
         assert self._soup is not None
@@ -388,9 +438,9 @@ class WebyxEnvironment(Environment):
             TaskSpec(
                 task_id="hard",
                 title="Full page audit with mixed A, AA and AAA issues",
-                max_steps=14,
+                max_steps=16,
                 initial_html="""
-<div class="page-shell">
+<div class="page-shell" id="page-root">
   <div id="nav-links">
     <a id="home-link" href="/home">Home</a>
     <a id="pricing-link" href="/pricing">Pricing</a>
@@ -401,15 +451,60 @@ class WebyxEnvironment(Environment):
     <input id="shipping-email" type="email" placeholder="Email">
   </form>
   <p id="fine-print" class="muted tiny">All offers expire in 24 hours.</p>
+  <div id="promo-banner" class="banner">Limited offer</div>
 </div>
 """.strip(),
                 violations=[
-                    ViolationSpec("nav-landmark", "A", "#nav-links", "Primary navigation must use a <nav> landmark.", _landmark_present("nav#nav-links"), _apply_replace_tag("#nav-links", "nav")),
-                    ViolationSpec("feature-alt", "A", "#feature-shot", "Feature image is missing a non-empty alt attribute.", _has_non_empty_alt("#feature-shot"), _apply_alt("#feature-shot")),
-                    ViolationSpec("shipping-name-label", "AA", "#shipping-name", "Shipping name input is missing an associated label.", _label_exists("shipping-name"), _apply_label("#shipping-name", "shipping-name")),
-                    ViolationSpec("shipping-email-autocomplete", "AA", "#shipping-email", "Email field is missing the expected autocomplete token.", _field_has_autocomplete("#shipping-email", "email"), _apply_autocomplete("#shipping-email", "email")),
-                    ViolationSpec("fine-print-contrast", "AA", "#fine-print", "Fine print requires the high-contrast class.", _has_high_contrast_class("#fine-print"), _apply_class("#fine-print", "high-contrast")),
-                    ViolationSpec("fine-print-aaa", "AAA", "#fine-print", "AAA readability requires removing the tiny text class.", lambda soup: "tiny" not in (soup.select_one("#fine-print") or {}).get("class", []), self._apply_remove_class("#fine-print", "tiny")),
+                    ViolationSpec(
+                        "nav-landmark", "A", "#nav-links",
+                        "Primary navigation must use a <nav> landmark.",
+                        _landmark_present("nav#nav-links"),
+                        _apply_replace_tag("#nav-links", "nav"),
+                    ),
+                    ViolationSpec(
+                        "feature-alt", "A", "#feature-shot",
+                        "Feature image is missing a non-empty alt attribute.",
+                        _has_non_empty_alt("#feature-shot"),
+                        _apply_alt("#feature-shot"),
+                    ),
+                    ViolationSpec(
+                        "page-lang", "A", "#page-root",
+                        "Document root is missing a lang attribute for screen readers.",
+                        _has_lang("#page-root"),
+                        _apply_lang("#page-root", "en"),
+                    ),
+                    ViolationSpec(
+                        "shipping-name-label", "AA", "#shipping-name",
+                        "Shipping name input is missing an associated label.",
+                        _label_exists("shipping-name"),
+                        _apply_label("#shipping-name", "shipping-name"),
+                    ),
+                    ViolationSpec(
+                        "shipping-email-autocomplete", "AA", "#shipping-email",
+                        "Email field is missing the expected autocomplete token.",
+                        _field_has_autocomplete("#shipping-email", "email"),
+                        _apply_autocomplete("#shipping-email", "email"),
+                    ),
+                    ViolationSpec(
+                        "fine-print-contrast", "AA", "#fine-print",
+                        "Fine print requires the high-contrast class.",
+                        _has_high_contrast_class("#fine-print"),
+                        _apply_class("#fine-print", "high-contrast"),
+                    ),
+                    ViolationSpec(
+                        "fine-print-aaa", "AAA", "#fine-print",
+                        "AAA readability requires removing the tiny text class. Fix contrast first.",
+                        lambda soup: "tiny" not in (soup.select_one("#fine-print") or {}).get("class", []),
+                        self._apply_remove_class("#fine-print", "tiny"),
+                        dependencies=("fine-print-contrast",),
+                    ),
+                    ViolationSpec(
+                        "promo-role", "AAA", "#promo-banner",
+                        "Promo banner must have role='region' for landmark navigation. Fix nav landmark first.",
+                        _has_role("#promo-banner", "region"),
+                        _apply_role("#promo-banner", "region"),
+                        dependencies=("nav-landmark",),
+                    ),
                 ],
             ),
         ]
