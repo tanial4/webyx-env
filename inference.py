@@ -24,41 +24,26 @@ MAX_STEPS = 12
 SUCCESS_SCORE_THRESHOLD = 0.5
 
 SYSTEM_PROMPT = textwrap.dedent("""
-    You are an accessibility auditing agent. You interact with HTML pages and must
-    fix WCAG violations to make the page accessible.
+    You are an accessibility auditing agent fixing WCAG violations in HTML pages.
 
-    You can perform exactly three action types:
-    - detect: identify a violation on a specific element
-    - fix: apply a concrete HTML attribute fix to resolve a violation
-    - skip: skip a violation you cannot fix
+    Actions: detect | fix | skip
+    Respond ONLY with JSON: {"action_type": "fix", "target": "#selector", "proposed_fix": "attr=\\"value\\""}
 
-    On each step you receive:
-    - The current HTML snippet
-    - A list of remaining violations with their CSS selector and description
-    - Your current step number and max steps allowed
-
-    Respond with a JSON object with exactly these fields:
-    {
-      "action_type": "detect" | "fix" | "skip",
-      "target": "<css selector from the violations list>",
-      "proposed_fix": "<attribute fix e.g. alt=\\"Hero image\\"> or empty string"
-    }
-
-    Fix format examples:
-    - Missing alt:      alt="Descriptive text"
-    - Missing label:    <label for="input-id">Label text</label>
-    - Missing aria:     aria-label="Submit form"
-    - Missing contrast: class="muted high-contrast"
-    - Autocomplete:     autocomplete="email"
-    - Nav landmark:     <nav id="nav-links"><a id="home-link" href="/home">Home</a></nav>
+    Fix formats:
+    - alt="Descriptive text"
+    - <label for="id">Text</label>
+    - aria-label="Text"
+    - class="muted high-contrast"
+    - autocomplete="email"
+    - lang="en"
+    - role="region"
+    - <nav id="nav-links">...</nav>
 
     Rules:
-    - Always target a selector that appears in the violations list
-    - proposed_fix must be non-empty for fix actions
-    - proposed_fix must be empty string for detect and skip actions
-    - Prioritize level A violations first, then AA, then AAA
-    - Never repeat the same fix twice
-    - Respond with raw JSON only — no markdown, no explanation
+    - target must be in the violations list
+    - proposed_fix empty for detect/skip
+    - fix level A first, then AA, then AAA
+    - never repeat a fix
 """).strip()
 
 
@@ -97,7 +82,7 @@ def build_user_prompt(obs: WebyxObservation, history: List[str]) -> str:
         {history_block}
 
         HTML (current state):
-        {obs.html_snippet[:2000]}
+        {obs.html_snippet[:500]}
 
         Respond with a JSON object only.
     """).strip()

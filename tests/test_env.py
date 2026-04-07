@@ -34,10 +34,10 @@ def test_reset_hard():
     env = WebyxEnvironment()
     obs = env.reset(task_id="hard")
     assert obs.task_id == "hard"
-    assert len(obs.violations) == 6
-    assert obs.remaining_violations["A"] == 2
+    assert len(obs.violations) == 6  # AAA con dependencias no visibles al inicio
+    assert obs.remaining_violations["A"] == 3
     assert obs.remaining_violations["AA"] == 3
-    assert obs.remaining_violations["AAA"] == 1
+    assert obs.remaining_violations["AAA"] == 0  # ocultas hasta resolver dependencias
 
 
 def test_fix_correct_gives_positive_reward(env):
