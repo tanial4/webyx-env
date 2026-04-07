@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from copy import deepcopy
 from dataclasses import dataclass
-from typing import Callable, List, Literal
+from typing import Callable, List, Literal, Optional
 from uuid import uuid4
 
 from bs4 import BeautifulSoup
@@ -199,7 +199,7 @@ def _apply_replace_tag(selector: str, expected_tag: str) -> Callable[[BeautifulS
 
 
 def _skip_reward(level: Level) -> float:
-    return -0.35 if level == "A" else -0.1
+    return -0.20 if level == "A" else -0.10
 
 
 class WebyxEnvironment(Environment):
@@ -216,10 +216,16 @@ class WebyxEnvironment(Environment):
         self._resolved: set[str] = set()
         self._cumulative_reward = 0.0
 
-    def reset(self) -> WebyxObservation:
+    def reset(self, task_id: Optional[str] = None) -> WebyxObservation:
         self._state = State(episode_id=str(uuid4()), step_count=0)
         self._reset_count += 1
-        self._task_index = (self._task_index + 1) % len(self._tasks)
+
+        if task_id is not None:
+            index = next((i for i, t in enumerate(self._tasks) if t.task_id == task_id), None)
+            self._task_index = index if index is not None else (self._task_index + 1) % len(self._tasks)
+        else:
+            self._task_index = (self._task_index + 1) % len(self._tasks)
+
         self._task = deepcopy(self._tasks[self._task_index])
         self._soup = BeautifulSoup(self._task.initial_html, "html.parser")
         self._detected = set()
@@ -236,7 +242,6 @@ class WebyxEnvironment(Environment):
         reward = 0.0
         event = "noop"
 
-        # Normalizar inputs para evitar problemas de serialización / espacios / enums
         raw_action_type = getattr(action, "action_type", "")
         action_type = str(raw_action_type).split(".")[-1].strip().lower()
 
@@ -259,7 +264,6 @@ class WebyxEnvironment(Environment):
 
         elif action_type == "fix":
             event = "fix"
-
             if violation is None:
                 reward = -0.20
             else:
@@ -273,7 +277,6 @@ class WebyxEnvironment(Environment):
 
                     if resolved:
                         self._resolved.add(violation.violation_id)
-
                         if violation.level == "A":
                             reward = 0.40
                         elif violation.level == "AA":
@@ -296,24 +299,17 @@ class WebyxEnvironment(Environment):
             event = "invalid_action"
             reward = -0.10
 
-        # Recalcular después de la acción
         active_after = self._active_violations()
 
-        # Penalización si la acción empeoró la estructura
         if len(active_after) > len(active):
             reward -= 0.20
 
-        # Clamp de reward individual
         reward = max(-1.0, min(1.0, reward))
 
         self._cumulative_reward += reward
         done = not active_after or self._state.step_count >= self._task.max_steps
 
-        return self._build_observation(
-            reward=reward,
-            done=done,
-            event=event,
-        )
+        return self._build_observation(reward=reward, done=done, event=event)
 
     @property
     def state(self) -> State:
