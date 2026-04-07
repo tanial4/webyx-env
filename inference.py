@@ -12,15 +12,11 @@ from webyx_env.models import WebyxAction, WebyxObservation
 IMAGE_NAME = os.getenv("LOCAL_IMAGE_NAME", "webyx-env")
 HF_SPACE_URL = os.getenv("HF_SPACE_URL")
 API_KEY = os.getenv("HF_TOKEN") or os.getenv("API_KEY")
-API_BASE_URL = os.getenv("API_BASE_URL")
-MODEL_NAME = os.getenv("MODEL_NAME")
+API_BASE_URL = os.getenv("API_BASE_URL", "https://router.huggingface.co/v1")
+MODEL_NAME = os.getenv("MODEL_NAME", "Qwen/Qwen2.5-72B-Instruct")
 
 if not API_KEY:
     raise ValueError("HF_TOKEN o API_KEY no definido en .env")
-if not API_BASE_URL:
-    raise ValueError("API_BASE_URL no definido en .env")
-if not MODEL_NAME:
-    raise ValueError("MODEL_NAME no definido en .env")
 
 BENCHMARK = "webyx_env"
 TASKS = ["easy", "medium", "hard"]
