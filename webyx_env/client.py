@@ -33,6 +33,7 @@ class WebyxEnv(EnvClient[WebyxAction, WebyxObservation, State]):
             max_steps=obs_data.get("max_steps", 0),
             done=payload.get("done", False),
             reward=payload.get("reward"),
+            episode_score=obs_data.get("episode_score", 0.0),
             metadata=obs_data.get("metadata", {}),
         )
         return StepResult(
