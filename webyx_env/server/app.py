@@ -1,14 +1,15 @@
-# Copyright (c) Meta Platforms, Inc. and affiliates.
-# All rights reserved.
-#
-# This source code is licensed under the BSD-style license found in the
-# LICENSE file in the root directory of this source tree.
-
 """FastAPI application for the Webyx accessibility auditing benchmark."""
+
+import os
+from pathlib import Path
+
+from fastapi import Response
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import HTMLResponse
 
 try:
     from openenv.core.env_server.http_server import create_app
-except Exception as e:  # pragma: no cover
+except Exception as e:
     raise ImportError(
         "openenv is required for the web interface. Install dependencies with '\n    uv sync\n'"
     ) from e
@@ -20,6 +21,7 @@ except (ImportError, ModuleNotFoundError):
     from models import WebyxAction, WebyxObservation
     from server.webyx_env_environment import WebyxEnvironment
 
+
 def make_env():
     env = WebyxEnvironment()
     env.reset()
@@ -27,12 +29,27 @@ def make_env():
 
 
 app = create_app(
-    make_env,          # ← único cambio
+    make_env,
     WebyxAction,
     WebyxObservation,
     env_name="webyx_env",
     max_concurrent_envs=1,
 )
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+_UI_FILE = Path(__file__).parent / "webyx_ui.html"
+
+@app.get("/ui", response_class=HTMLResponse)
+async def ui():
+    if _UI_FILE.exists():
+        return HTMLResponse(content=_UI_FILE.read_text(encoding="utf-8"))
+    return HTMLResponse(content="<h1>UI not found</h1>", status_code=404)
 
 
 def main():
