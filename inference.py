@@ -10,10 +10,12 @@ from webyx_env.client import WebyxEnv
 from webyx_env.models import WebyxAction, WebyxObservation
 
 IMAGE_NAME = os.getenv("LOCAL_IMAGE_NAME", "webyx-env")
+HF_SPACE_URL = os.getenv("HF_SPACE_URL")
 API_KEY = os.getenv("HF_TOKEN") or os.getenv("API_KEY")
 API_BASE_URL = os.getenv("API_BASE_URL", "https://router.huggingface.co/v1")
 MODEL_NAME = os.getenv("MODEL_NAME", "Qwen/Qwen2.5-72B-Instruct")
 BENCHMARK = "webyx_env"
+TASKS = ["easy", "medium", "hard"]
 MAX_STEPS = 12
 SUCCESS_SCORE_THRESHOLD = 0.5
 
@@ -125,24 +127,18 @@ def get_action(client: OpenAI, obs: WebyxObservation, history: List[str]) -> Web
         return WebyxAction(action_type="skip", target="", proposed_fix="")
 
 
-async def main() -> None:
-    client = OpenAI(base_url=API_BASE_URL, api_key=API_KEY)
-
-    env = await WebyxEnv.from_docker_image(IMAGE_NAME)
-
+async def run_episode(env: WebyxEnv, client: OpenAI, task_id: str) -> None:
     history: List[str] = []
     rewards: List[float] = []
     steps_taken = 0
     score = 0.0
     success = False
-    task_name = "unknown"
 
     try:
-        result = await env.reset()
+        result = await env.reset(task_id=task_id)
         obs: WebyxObservation = result.observation
-        task_name = obs.task_id
 
-        log_start(task=task_name, env=BENCHMARK, model=MODEL_NAME)
+        log_start(task=obs.task_id, env=BENCHMARK, model=MODEL_NAME)
 
         for step in range(1, MAX_STEPS + 1):
             if result.done:
@@ -174,14 +170,28 @@ async def main() -> None:
         success = score >= SUCCESS_SCORE_THRESHOLD
 
     except Exception as e:
-        print(f"[DEBUG] episode error: {e}", flush=True)
+        print(f"[DEBUG] episode error ({task_id}): {e}", flush=True)
 
+    finally:
+        log_end(success=success, steps=steps_taken, score=score, rewards=rewards)
+
+
+async def main() -> None:
+    client = OpenAI(base_url=API_BASE_URL, api_key=API_KEY)
+
+    if HF_SPACE_URL:
+        env = WebyxEnv(base_url=HF_SPACE_URL)
+    else:
+        env = await WebyxEnv.from_docker_image(IMAGE_NAME)
+
+    try:
+        for task_id in TASKS:
+            await run_episode(env, client, task_id)
     finally:
         try:
             await env.close()
-        except Exception as e:
+        except Exception:
             pass
-        log_end(success=success, steps=steps_taken, score=score, rewards=rewards)
 
 
 if __name__ == "__main__":
