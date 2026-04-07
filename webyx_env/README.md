@@ -8,8 +8,8 @@ pinned: false
 app_port: 8000
 base_path: /web
 tags:
-  - reinforcement-learning
   - openenv
+  - reinforcement-learning
   - accessibility
 ---
 
