@@ -62,19 +62,19 @@ tags:
 
 Measured with `Qwen/Qwen2.5-72B-Instruct` via HuggingFace Inference Router:
 [START] task=easy env=webyx_env model=Qwen/Qwen2.5-72B-Instruct
-[STEP] step=1 action=fix('#hero','alt="Hero image"') reward=0.40 done=false error=null
-[STEP] step=2 action=fix('#team','alt="Team photo"') reward=0.40 done=false error=null
-[STEP] step=3 action=fix('#office','alt="Office space"') reward=0.40 done=false error=null
-[STEP] step=4 action=fix('#award','alt="Award ceremony"') reward=0.40 done=true error=null
-[END] success=true steps=4 score=1.00 rewards=0.40,0.40,0.40,0.40
+[STEP] step=1 action=fix('#hero','alt="Hero image of our main office and team"') reward=0.40 done=false error=null
+[STEP] step=2 action=fix('#team','alt="Our dedicated team working together"') reward=0.40 done=false error=null
+[STEP] step=3 action=fix('#office','alt="Modern office space with comfortable workstations"') reward=0.40 done=false error=null
+[STEP] step=4 action=fix('#award','alt="Company receiving an award for outstanding performance"') reward=0.40 done=true error=null
+[END] success=true steps=4 score=0.99 rewards=0.40,0.40,0.40,0.40
 [START] task=medium env=webyx_env model=Qwen/Qwen2.5-72B-Instruct
 [STEP] step=1 action=fix('#full-name','<label for="full-name">Full name</label>') reward=0.30 done=false error=null
 [STEP] step=2 action=fix('#email','<label for="email">Email address</label>') reward=0.30 done=false error=null
 [STEP] step=3 action=fix('#submit-btn','aria-label="Submit"') reward=0.30 done=false error=null
 [STEP] step=4 action=fix('#lead','class="muted high-contrast"') reward=0.30 done=true error=null
-[END] success=true steps=4 score=1.00 rewards=0.30,0.30,0.30,0.30
+[END] success=true steps=4 score=0.99 rewards=0.30,0.30,0.30,0.30
 [START] task=hard env=webyx_env model=Qwen/Qwen2.5-72B-Instruct
-[STEP] step=1 action=fix('#nav-links','<nav id="nav-links">...</nav>') reward=0.40 done=false error=null
+[STEP] step=1 action=fix('#nav-links','<nav id="nav-links">') reward=0.40 done=false error=null
 [STEP] step=2 action=fix('#feature-shot','alt="Feature image description"') reward=0.40 done=false error=null
 [STEP] step=3 action=fix('#page-root','lang="en"') reward=0.40 done=false error=null
 [STEP] step=4 action=fix('#shipping-name','<label for="shipping-name">Shipping Name</label>') reward=0.30 done=false error=null
@@ -82,7 +82,7 @@ Measured with `Qwen/Qwen2.5-72B-Instruct` via HuggingFace Inference Router:
 [STEP] step=6 action=fix('#fine-print','class="muted high-contrast tiny"') reward=0.30 done=false error=null
 [STEP] step=7 action=fix('#promo-banner','role="region"') reward=0.20 done=false error=null
 [STEP] step=8 action=fix('#fine-print','class="muted high-contrast"') reward=0.20 done=true error=null
-[END] success=true steps=8 score=1.00 rewards=0.40,0.40,0.40,0.30,0.30,0.30,0.20,0.20
+[END] success=true steps=8 score=0.99 rewards=0.40,0.40,0.40,0.30,0.30,0.30,0.20,0.20
 
 ## Reward structure
 

@@ -129,7 +129,11 @@ def get_action(client: OpenAI, obs: WebyxObservation, history: List[str]) -> Web
 
 
 def calculate_score(obs: WebyxObservation, rewards: List[float]) -> float:
-    return round(min(max(obs.episode_score, 0.0), 1.0), 2)
+    raw = obs.episode_score
+    raw = min(raw, 0.99)
+    raw = max(raw, 0.01)
+    result = round(raw, 2)
+    return result
 
 
 async def run_episode(env: WebyxEnv, client: OpenAI, task_id: str) -> None:
