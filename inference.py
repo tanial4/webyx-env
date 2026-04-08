@@ -4,6 +4,7 @@ import os
 import re
 import textwrap
 from typing import List, Optional
+
 from dotenv import load_dotenv
 load_dotenv()
 
@@ -17,7 +18,7 @@ except ImportError:
     from models import WebyxAction, WebyxObservation
 
 IMAGE_NAME = os.getenv("LOCAL_IMAGE_NAME", "webyx-env")
-HF_SPACE_URL = os.getenv("HF_SPACE_URL")
+HF_SPACE_URL = os.getenv("HF_SPACE_URL", "https://mykrex-webyx-env.hf.space")
 API_KEY = os.getenv("HF_TOKEN") or os.getenv("API_KEY")
 API_BASE_URL = os.getenv("API_BASE_URL", "https://router.huggingface.co/v1")
 MODEL_NAME = os.getenv("MODEL_NAME", "Qwen/Qwen2.5-72B-Instruct")
@@ -182,10 +183,14 @@ async def run_episode(env: WebyxEnv, client: OpenAI, task_id: str) -> None:
 async def main() -> None:
     client = OpenAI(base_url=API_BASE_URL, api_key=API_KEY)
 
-    if HF_SPACE_URL:
+    try:
+        if os.getenv("LOCAL_IMAGE_NAME"):
+            env = await WebyxEnv.from_docker_image(IMAGE_NAME)
+        else:
+            env = WebyxEnv(base_url=HF_SPACE_URL)
+    except Exception as e:
+        print(f"[DEBUG] env connection error: {e}", flush=True)
         env = WebyxEnv(base_url=HF_SPACE_URL)
-    else:
-        env = await WebyxEnv.from_docker_image(IMAGE_NAME)
 
     try:
         for task_id in TASKS:
