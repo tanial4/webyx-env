@@ -1,0 +1,58 @@
+spec_version: 1
+name: webyx_env
+type: space
+runtime: fastapi
+app: server.app:app
+port: 8000
+base_path: /
+
+description: "RL environment for benchmarking AI agents on WCAG web accessibility auditing"
+author: "webyx-team"
+
+reward_range: [-1.0, 1.0]
+score_range: [0.0, 1.0]
+deterministic: true
+
+tasks:
+  - id: easy
+    description: "Fix missing alt attributes on 4 images (WCAG level A)"
+    difficulty: easy
+    max_steps: 8
+    violations: 4
+  - id: medium
+    description: "Fix AA form violations: labels, contrast, ARIA"
+    difficulty: medium
+    max_steps: 10
+    violations: 4
+  - id: hard
+    description: "Full audit of mixed A, AA and AAA violations"
+    difficulty: hard
+    max_steps: 14
+    violations: 6
+
+action_space:
+  type: structured
+  fields:
+    - name: action_type
+      type: enum
+      values: [detect, fix, skip]
+    - name: target
+      type: string
+    - name: proposed_fix
+      type: string
+
+observation_space:
+  type: structured
+  fields:
+    - name: html_snippet
+      type: string
+    - name: violations
+      type: list
+    - name: remaining_violations
+      type: dict
+    - name: step_number
+      type: integer
+    - name: episode_score
+      type: float
+    - name: metadata
+      type: dict

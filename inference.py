@@ -1,0 +1,201 @@
+import asyncio
+import json
+import os
+import re
+import textwrap
+from typing import List, Optional
+from dotenv import load_dotenv
+load_dotenv()
+
+from openai import OpenAI
+
+try:
+    from webyx_env.client import WebyxEnv
+    from webyx_env.models import WebyxAction, WebyxObservation
+except ImportError:
+    from client import WebyxEnv
+    from models import WebyxAction, WebyxObservation
+
+IMAGE_NAME = os.getenv("LOCAL_IMAGE_NAME", "webyx-env")
+HF_SPACE_URL = os.getenv("HF_SPACE_URL")
+API_KEY = os.getenv("HF_TOKEN") or os.getenv("API_KEY")
+API_BASE_URL = os.getenv("API_BASE_URL", "https://router.huggingface.co/v1")
+MODEL_NAME = os.getenv("MODEL_NAME", "Qwen/Qwen2.5-72B-Instruct")
+
+if not API_KEY:
+    raise ValueError("HF_TOKEN o API_KEY no definido en .env")
+
+BENCHMARK = "webyx_env"
+TASKS = ["easy", "medium", "hard"]
+MAX_STEPS = 12
+SUCCESS_SCORE_THRESHOLD = 0.5
+
+SYSTEM_PROMPT = textwrap.dedent("""
+    You are an accessibility auditing agent fixing WCAG violations in HTML pages.
+
+    Actions: detect | fix | skip
+    Respond ONLY with JSON: {"action_type": "fix", "target": "#selector", "proposed_fix": "attr=\\"value\\""}
+
+    Fix formats:
+    - alt="Descriptive text"
+    - <label for="id">Text</label>
+    - aria-label="Text"
+    - class="muted high-contrast"
+    - autocomplete="email"
+    - lang="en"
+    - role="region"
+    - <nav id="nav-links">...</nav>
+
+    Rules:
+    - target must be in the violations list
+    - proposed_fix empty for detect/skip
+    - fix level A first, then AA, then AAA
+    - never repeat a fix
+""").strip()
+
+
+def log_start(task: str, env: str, model: str) -> None:
+    print(f"[START] task={task} env={env} model={model}", flush=True)
+
+
+def log_step(step: int, action: str, reward: float, done: bool, error: Optional[str]) -> None:
+    error_val = error if error else "null"
+    print(f"[STEP] step={step} action={action} reward={reward:.2f} done={str(done).lower()} error={error_val}", flush=True)
+
+
+def log_end(success: bool, steps: int, score: float, rewards: List[float]) -> None:
+    rewards_str = ",".join(f"{r:.2f}" for r in rewards)
+    print(f"[END] success={str(success).lower()} steps={steps} score={score:.2f} rewards={rewards_str}", flush=True)
+
+
+def build_user_prompt(obs: WebyxObservation, history: List[str]) -> str:
+    violations_block = "\n".join(
+        f"  - [{v.level}] {v.selector}: {v.description}"
+        for v in obs.violations
+    ) or "  None remaining"
+
+    history_block = "\n".join(history[-2:]) if history else "None"
+
+    return textwrap.dedent(f"""
+        Task: {obs.task_title}
+        Step: {obs.step_number} / {obs.max_steps}
+
+        Remaining violations:
+        {violations_block}
+
+        Remaining by level: {obs.remaining_violations}
+
+        Recent history:
+        {history_block}
+
+        HTML (current state):
+        {obs.html_snippet[:500]}
+
+        Respond with a JSON object only.
+    """).strip()
+
+
+def get_action(client: OpenAI, obs: WebyxObservation, history: List[str]) -> WebyxAction:
+    user_prompt = build_user_prompt(obs, history)
+    try:
+        completion = client.chat.completions.create(
+            model=MODEL_NAME,
+            messages=[
+                {"role": "system", "content": SYSTEM_PROMPT},
+                {"role": "user", "content": user_prompt},
+            ],
+            temperature=0.0,
+            max_tokens=200,
+            stream=False,
+        )
+        text = (completion.choices[0].message.content or "").strip()
+        text = text.strip("```json").strip("```").strip()
+        match = re.search(r'\{.*?\}', text, re.DOTALL)
+        if match:
+            data = json.loads(match.group())
+        else:
+            raise ValueError("No JSON found in response")
+        return WebyxAction(
+            action_type=data.get("action_type", "skip"),
+            target=data.get("target", ""),
+            proposed_fix=data.get("proposed_fix", ""),
+        )
+    except Exception as exc:
+        print(f"[DEBUG] model error: {exc}", flush=True)
+        if obs.violations:
+            return WebyxAction(action_type="skip", target=obs.violations[0].selector, proposed_fix="")
+        return WebyxAction(action_type="skip", target="", proposed_fix="")
+
+
+def calculate_score(obs: WebyxObservation, rewards: List[float]) -> float:
+    return round(min(max(obs.episode_score, 0.0), 1.0), 2)
+
+
+async def run_episode(env: WebyxEnv, client: OpenAI, task_id: str) -> None:
+    history: List[str] = []
+    rewards: List[float] = []
+    steps_taken = 0
+    score = 0.0
+    success = False
+
+    try:
+        result = await env.reset(task_id=task_id)
+        obs: WebyxObservation = result.observation
+
+        log_start(task=obs.task_id, env=BENCHMARK, model=MODEL_NAME)
+
+        for step in range(1, MAX_STEPS + 1):
+            if result.done:
+                break
+
+            action = get_action(client, obs, history)
+
+            result = await env.step(action)
+            obs = result.observation
+
+            reward = result.reward or 0.0
+            done = result.done
+            rewards.append(reward)
+            steps_taken = step
+
+            action_str = f"{action.action_type}('{action.target}','{action.proposed_fix}')"
+            log_step(step=step, action=action_str, reward=reward, done=done, error=None)
+
+            history.append(
+                f"Step {step}: {action.action_type} {action.target} "
+                f"fix='{action.proposed_fix}' -> reward={reward:+.2f}"
+            )
+
+            if done:
+                break
+
+        score = calculate_score(obs, rewards)
+        success = score >= SUCCESS_SCORE_THRESHOLD
+
+    except Exception as e:
+        print(f"[DEBUG] episode error ({task_id}): {e}", flush=True)
+
+    finally:
+        log_end(success=success, steps=steps_taken, score=score, rewards=rewards)
+
+
+async def main() -> None:
+    client = OpenAI(base_url=API_BASE_URL, api_key=API_KEY)
+
+    if HF_SPACE_URL:
+        env = WebyxEnv(base_url=HF_SPACE_URL)
+    else:
+        env = await WebyxEnv.from_docker_image(IMAGE_NAME)
+
+    try:
+        for task_id in TASKS:
+            await run_episode(env, client, task_id)
+    finally:
+        try:
+            await env.close()
+        except Exception:
+            pass
+
+
+if __name__ == "__main__":
+    asyncio.run(main())
