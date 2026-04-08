@@ -6,6 +6,7 @@ from pathlib import Path
 from fastapi import Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
+from fastapi.responses import RedirectResponse, HTMLResponse
 
 try:
     from openenv.core.env_server.http_server import create_app
@@ -44,6 +45,10 @@ app.add_middleware(
 )
 
 _UI_FILE = Path(__file__).parent / "webyx_ui.html"
+
+@app.get("/")
+async def root():
+    return RedirectResponse(url="/ui")
 
 @app.get("/ui", response_class=HTMLResponse)
 async def ui():

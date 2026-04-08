@@ -31,9 +31,9 @@ dev = [
 [project.scripts]
 # Server entry point - enables running via: uv run --project . server
 # or: python -m webyx_env.server.app
-server = "webyx_env.server.app:main"
+server = "server.app:main"
 
 [tool.setuptools]
 include-package-data = true
-packages = ["webyx_env", "webyx_env.server"]
-package-dir = { "webyx_env" = ".", "webyx_env.server" = "server" }
+packages = ["webyx_env", "webyx_env.server", "server"]
+package-dir = { "webyx_env" = ".", "webyx_env.server" = "server", "server" = "server" }
