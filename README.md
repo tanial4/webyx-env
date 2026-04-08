@@ -25,13 +25,32 @@ tags:
 - Episode score is deterministic in `[0.0, 1.0]` and is exposed as `observation.episode_score`.
 - Violations with dependencies are hidden until their prerequisites are resolved, requiring the agent to discover the correct remediation order.
 
+## Observation space
+
+| Field                | Type  | Description                                              |
+| -------------------- | ----- | -------------------------------------------------------- |
+| html_snippet         | str   | Current HTML page under audit                            |
+| violations           | list  | Active WCAG violations with level, selector, description |
+| remaining_violations | dict  | Violation count by level — A, AA, AAA                    |
+| step_number          | int   | Current step in the episode                              |
+| max_steps            | int   | Maximum steps allowed for this task                      |
+| episode_score        | float | Current score in [0.0, 1.0]                              |
+
+## Action space
+
+| Field        | Type | Values                                              |
+| ------------ | ---- | --------------------------------------------------- |
+| action_type  | enum | detect, fix, skip                                   |
+| target       | str  | CSS selector of the element to act on               |
+| proposed_fix | str  | HTML attribute fix, or empty string for detect/skip |
+
 ## Tasks
 
-| Task | Violations | Max steps | WCAG levels | Baseline score |
-|------|-----------|-----------|-------------|----------------|
-| `easy` | 4 | 8 | A | 1.00 |
-| `medium` | 4 | 10 | AA | 1.00 |
-| `hard` | 8 | 16 | A, AA, AAA | 1.00 |
+| Task     | Violations | Max steps | WCAG levels | Baseline score |
+| -------- | ---------- | --------- | ----------- | -------------- |
+| `easy`   | 4          | 8         | A           | 1.00           |
+| `medium` | 4          | 10        | AA          | 1.00           |
+| `hard`   | 8          | 16        | A, AA, AAA  | 1.00           |
 
 - `easy`: add non-empty `alt` attributes to four marketing images.
 - `medium`: repair AA form issues including missing labels, unnamed controls, and low-contrast text.
@@ -67,19 +86,21 @@ Measured with `Qwen/Qwen2.5-72B-Instruct` via HuggingFace Inference Router:
 
 ## Reward structure
 
-| Action | Level A | Level AA | Level AAA |
-|--------|---------|----------|-----------|
-| `detect` correct | +0.15 | +0.10 | +0.10 |
-| `fix` correct | +0.40 | +0.30 | +0.20 |
-| `skip` | -0.20 | -0.10 | -0.10 |
-| Wrong target | -0.20 | -0.20 | -0.20 |
-| Invalid action | -0.10 | -0.10 | -0.10 |
+| Action           | Level A | Level AA | Level AAA |
+| ---------------- | ------- | -------- | --------- |
+| `detect` correct | +0.15   | +0.10    | +0.10     |
+| `fix` correct    | +0.40   | +0.30    | +0.20     |
+| `skip`           | -0.20   | -0.10    | -0.10     |
+| Wrong target     | -0.20   | -0.20    | -0.20     |
+| Invalid action   | -0.10   | -0.10    | -0.10     |
 
 ## Quick start
 
 ```bash
-python3 -m pip install -e .
-python -m webyx_env.server.app --port 8000
+# Install dependencies
+pip install -e .
+# Start the server
+uvicorn server.app:app --host 0.0.0.0 --port 8000
 ```
 
 Example client usage:
