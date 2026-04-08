@@ -45,7 +45,7 @@ app.add_middleware(
 
 _UI_FILE = Path(__file__).parent / "webyx_ui.html"
 
-@app.get("/", response_class=HTMLResponse)
+@app.get("/ui", response_class=HTMLResponse)
 async def ui():
     if _UI_FILE.exists():
         return HTMLResponse(content=_UI_FILE.read_text(encoding="utf-8"))
@@ -59,14 +59,9 @@ def main():
 
     parser = argparse.ArgumentParser()
     parser.add_argument("--host", default="0.0.0.0")
-    parser.add_argument("--port", type=int, default=7860)
+    parser.add_argument("--port", type=int, default=8000)
     args = parser.parse_args()
     uvicorn.run(app, host=args.host, port=args.port)
-
-
-@app.get("/health")
-async def health():
-    return {"status": "ok"}
 
 
 if __name__ == "__main__":
