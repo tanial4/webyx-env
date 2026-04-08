@@ -3,11 +3,8 @@ __pycache__/
 *.pyc
 *.pyo
 .git/
-.agents/
-.codex/
 .env
 .env.local
-prompt.txt
 requirements.txt
 validate-submission.sh
 variance_check.py

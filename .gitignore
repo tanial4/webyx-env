@@ -41,9 +41,3 @@ htmlcov/
 
 # Hugging Face
 hf_cache/
-
-prompt.txt
-
-# Specific files
-.agents/
-.codex/
